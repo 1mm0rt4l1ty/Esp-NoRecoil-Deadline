@@ -227,6 +227,9 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end
 
--- Initial update on startup
+
+getgenv().updateESP = updateESP
+getgenv().updateBigHead = updateBigHead
+
 updateESP()
 updateBigHead()
