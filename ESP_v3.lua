@@ -1,49 +1,100 @@
-local plrs = game.Workspace
-local plr = game:GetService("Players")
-local lplr = plr.LocalPlayer
+-------------------------------
+-- ESP & BigHead Script with UI
+-------------------------------
 
-local isRunning = true 
+-- Services and Variables
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local lplr = Players.LocalPlayer
 
-local function stopScript()
-    isRunning = false
-    print("Script arrêté.")
+-- Set or Default Global Settings
+getgenv().HealthESP   = getgenv().HealthESP   or false
+getgenv().NameESP     = getgenv().NameESP     or true
+getgenv().BoxESP      = getgenv().BoxESP      or false
+getgenv().bigHead     = getgenv().bigHead     or true
+getgenv().bigHeadSize = getgenv().bigHeadSize or 2
+
+
+
+
+--------------------------------
+-- BigHead Functions
+--------------------------------
+
+
+
+
+local function applyBigHead(character)
+    if character and character:IsA("Model") and character ~= lplr.Character then
+        local head = character:FindFirstChild("Head")
+        if head and (head:IsA("MeshPart") or head:IsA("Part")) then
+            -- Store original size if not already stored
+            if not head:GetAttribute("OriginalSize") then
+                head:SetAttribute("OriginalSize", head.Size)
+            end
+            head.Size = Vector3.new(getgenv().bigHeadSize, getgenv().bigHeadSize, getgenv().bigHeadSize)
+            head.CanCollide = false
+            head.CanTouch = true
+            head.CanQuery = true
+            head:SetAttribute("BigHeadApplied", true)
+        end
+    end
 end
 
-local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Consistt/Ui/main/UnLeaked"))()
+local function removeBigHead(character)
+    if character and character:IsA("Model") and character ~= lplr.Character then
+        local head = character:FindFirstChild("Head")
+        if head and head:GetAttribute("BigHeadApplied") then
+            local originalSize = head:GetAttribute("OriginalSize")
+            if originalSize then
+                head.Size = originalSize
+            end
+            head:SetAttribute("BigHeadApplied", nil)
+            head:SetAttribute("OriginalSize", nil)
+        end
+    end
+end
 
-local HealthESP = false
-local BoxESP = false
-local NameESP = false
-local bigHead = false
-
-
-task.spawn(function()
-    while isRunning and bigHead == true do
-        for _, character in ipairs(plrs:GetChildren()) do
-            if character:IsA("Model") and character ~= lplr.Character then
-                local head = character:FindFirstChild("Head")
-                if head and head:IsA("MeshPart") or head and head:IsA("Part") then 
-                    head.Size = Vector3.new(7, 7, 7)
-                    head.CanCollide = false
-                    head.CanTouch = true
-                    head.CanQuery = true
-                end
+local function updateBigHead()
+    for _, character in ipairs(Workspace:GetChildren()) do
+        if character:IsA("Model") and character ~= lplr.Character then
+            if getgenv().bigHead then
+                applyBigHead(character)
+            else
+                removeBigHead(character)
             end
         end
-        wait(1) 
     end
-end)
+end
 
-local function createESP(character, HealthESP, BoxESP, NameESP)
+
+
+--------------------------------
+-- ESP Functions
+--------------------------------
+
+
+
+local function removeESP(character)
+    local HRP = character:FindFirstChild("HumanoidRootPart")
+    if HRP then
+        for _, child in ipairs(HRP:GetChildren()) do
+            if child:IsA("BillboardGui") and (child.Name == "Esp" or child.Name == "Nesp" or child.Name == "HealthUI") then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+local function createESP(character)
+    removeESP(character)
+    
     local head = character:FindFirstChild("Head")
     local HRP = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChild("Humanoid")
-
+    
     if HRP and HRP:IsA("Part") and humanoid then
-        if HRP:FindFirstChild("Esp") then
-            HRP.Esp:Destroy()
-        end
-
+        -- Main ESP Gui
         local bg1 = Instance.new("BillboardGui")
         bg1.Name = "Esp"
         bg1.Adornee = HRP
@@ -61,20 +112,21 @@ local function createESP(character, HealthESP, BoxESP, NameESP)
             local frame = Instance.new("Frame")
             frame.Position = position
             frame.Size = size
-            frame.BackgroundColor3 = Color3.new(255 / 255, 98 / 255, 239 / 255)
+            frame.BackgroundColor3 = Color3.new(255/255, 98/255, 239/255)
             frame.BackgroundTransparency = 0.2
-            frame.BorderColor3 = Color3.new(255 / 255, 98 / 255, 239 / 255)
+            frame.BorderColor3 = Color3.new(255/255, 98/255, 239/255)
             frame.BorderSizePixel = 1
             frame.Parent = f0
-            frame.Visible = BoxESP
+            frame.Visible = getgenv().BoxESP
         end
 
-        createBoxFrame(UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0.01, 0)) 
-        createBoxFrame(UDim2.new(0, 0, 0.999, 0), UDim2.new(1, 0, 0.01, 0)) 
-        createBoxFrame(UDim2.new(1, 0, 0, 0), UDim2.new(-0.01, 0, 1, 0)) 
+        createBoxFrame(UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0.01, 0))
+        createBoxFrame(UDim2.new(0, 0, 0.999, 0), UDim2.new(1, 0, 0.01, 0))
+        createBoxFrame(UDim2.new(1, 0, 0, 0), UDim2.new(-0.01, 0, 1, 0))
         createBoxFrame(UDim2.new(0, 0, 0, 0), UDim2.new(0.01, 0, 1, 0))
 
-        if head and not HRP:FindFirstChild("Nesp") then
+        -- Name ESP (if enabled)
+        if head and getgenv().NameESP then
             local bg2 = Instance.new("BillboardGui")
             bg2.Name = "Nesp"
             bg2.Adornee = head
@@ -91,14 +143,13 @@ local function createESP(character, HealthESP, BoxESP, NameESP)
             n.Size = UDim2.new(0, 200, 0, 50)
             n.Font = Enum.Font.Michroma
             n.Text = character.Name
-            n.TextColor3 = Color3.new(255 / 255, 98 / 255, 239 / 255)
+            n.TextColor3 = Color3.new(255/255, 98/255, 239/255)
             n.TextSize = 16
             n.TextStrokeColor3 = Color3.new(0, 0, 0)
             n.TextStrokeTransparency = 0.4
-            n.Visible = NameESP
         end
 
-
+        -- Health ESP
         local pv0 = Instance.new("BillboardGui")
         pv0.Name = "HealthUI"
         pv0.Adornee = HRP
@@ -112,77 +163,70 @@ local function createESP(character, HealthESP, BoxESP, NameESP)
         pv1.BackgroundTransparency = 0.2
         pv1.Parent = pv0
         pv1.Position = UDim2.new(0.2, 0, 1, 0)
-        pv1.Visible = HealthESP
+        pv1.Visible = getgenv().HealthESP
 
-
-        if humanoid and humanoid.Health >= 80 then
-            pv1.BackgroundColor3 = Color3.new(37/255, 255/255, 25/255)
-            pv1.Size = UDim2.new(0.81, 0, -(humanoid.Health / humanoid.MaxHealth), 0)
-        else
-            if humanoid.Health <= 0 then
-                pv1.Size = UDim2.new(0.81, 0, 0, 0)
+        local function updateHealth()
+            if humanoid.Health >= 80 then
+                pv1.BackgroundColor3 = Color3.new(37/255, 255/255, 25/255)
+            elseif humanoid.Health < 80 and humanoid.Health >= 60 then
+                pv1.BackgroundColor3 = Color3.new(235/255, 255/255, 15/255)
+            elseif humanoid.Health < 60 and humanoid.Health >= 40 then
+                pv1.BackgroundColor3 = Color3.new(220/255, 127/255, 16/255)
+            elseif humanoid.Health < 40 and humanoid.Health >= 20 then
+                pv1.BackgroundColor3 = Color3.new(157/255, 15/255, 7/255)
             else
-                if humanoid.Health < 80 and humanoid.Health >= 60 then
-                    pv1.BackgroundColor3 = Color3.new(235/255, 255/255, 15/255)
-                    pv1.Size = UDim2.new(0.81, 0, -(humanoid.Health / humanoid.MaxHealth), 0)
-                else
-                    if humanoid.Health < 60 and humanoid.Health >= 40 then
-                        pv1.BackgroundColor3 = Color3.new(220/255, 127/255, 16/255)
-                        pv1.Size = UDim2.new(0.81, 0, -(humanoid.Health / humanoid.MaxHealth), 0)
-                    else
-                        if humanoid.Health < 40 and humanoid.Health >= 20 then
-                            pv1.BackgroundColor3 = Color3.new(157/255, 15/255, 7/255)
-                            pv1.Size = UDim2.new(0.81, 0, -(humanoid.Health / humanoid.MaxHealth), 0)
-                        end
-                    end
-                end
+                pv1.BackgroundColor3 = Color3.new(1, 0, 0)
             end
+            pv1.Size = UDim2.new(0.81, 0, -(humanoid.Health / humanoid.MaxHealth), 0)
         end
-    end
-end
 
-local function removeESP(character)
-    local HRP = character:FindFirstChild("HumanoidRootPart")
-    if HRP then
-        for _, child in ipairs(HRP:GetChildren()) do
-            if child:IsA("BillboardGui") and (child.Name == "Esp" or child.Name == "Nesp" or child.Name == "HealthUI") then
-                child:Destroy()
-            end
-        end
+        updateHealth()
+        humanoid.HealthChanged:Connect(updateHealth)
     end
 end
 
 local function updateESP()
-    for _, character in ipairs(plrs:GetChildren()) do
+    for _, character in ipairs(Workspace:GetChildren()) do
         if character:IsA("Model") and character ~= lplr.Character then
-            removeESP(character)
-            createESP(character, HealthESP, BoxESP, NameESP)
+            createESP(character)
         end
     end
 end
 
-plr.PlayerAdded:Connect(function(player)
+Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
         wait(1)
-        createESP(character, HealthESP, BoxESP, NameESP)
+        createESP(character)
+        if getgenv().bigHead then
+            applyBigHead(character)
+        else
+            removeBigHead(character)
+        end
     end)
 end)
 
-for _, player in ipairs(plr:GetPlayers()) do
+for _, player in ipairs(Players:GetPlayers()) do
     if player ~= lplr then
         player.CharacterAdded:Connect(function(character)
-            local humanoid = character:WaitForChild("Humanoid")
             wait(1)
-            createESP(character, HealthESP, BoxESP, NameESP)
+            createESP(character)
+            if getgenv().bigHead then
+                applyBigHead(character)
+            else
+                removeBigHead(character)
+            end
         end)
         if player.Character then
-            local humanoid = player.Character:WaitForChild("Humanoid")
-            createESP(player.Character, HealthESP, BoxESP, NameESP)
+            createESP(player.Character)
+            if getgenv().bigHead then
+                applyBigHead(player.Character)
+            else
+                removeBigHead(player.Character)
+            end
         end
     end
 end
 
-while wait(1) do
-    updateESP()
-end
+-- Initial update on startup
+updateESP()
+updateBigHead()
