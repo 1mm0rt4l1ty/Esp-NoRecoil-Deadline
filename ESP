@@ -66,7 +66,8 @@ end
 
 -- Creates a new drawing object. Supports "Line" and "Text".
 function Drawing.new(type)
-    print("[FakeDrawing] Drawing.new called with type:", type)
+    print("[DEBUG] Drawing.new called with type:", type)
+    
     local self = {
         Type = type,
         Visible = false,
@@ -77,13 +78,17 @@ function Drawing.new(type)
         From = Vector2.new(0, 0),
         To = Vector2.new(0, 0),
     }
-    setmetatable(self, Drawing_mt)
     
+    setmetatable(self, Drawing_mt)
+
     local drawingGui = getDrawingGui()
     if not drawingGui then
-        warn("[FakeDrawing] Failed to get drawingGui in Drawing.new")
+        warn("[DEBUG] Failed to get drawingGui in Drawing.new")
         return nil
     end
+
+    -- Print debug info for parent GUI
+    print("[DEBUG] GUI Parent Found:", drawingGui)
 
     if type == "Line" then
         self.GuiObject = Instance.new("Frame")
@@ -93,7 +98,8 @@ function Drawing.new(type)
         self.GuiObject.BackgroundColor3 = self.Color
         self.GuiObject.Visible = self.Visible
         self.GuiObject.Size = UDim2.new(0, 0, 0, self.Thickness)
-        print("[FakeDrawing] Created FakeLine (Frame)")
+        
+        print("[DEBUG] Created FakeLine Object:", self.GuiObject)
     elseif type == "Text" then
         self.GuiObject = Instance.new("TextLabel")
         self.GuiObject.Name = "FakeText"
@@ -101,15 +107,19 @@ function Drawing.new(type)
         self.GuiObject.TextColor3 = self.Color
         self.GuiObject.Visible = self.Visible
         self.GuiObject.TextSize = 14
-        print("[FakeDrawing] Created FakeText (TextLabel)")
+
+        print("[DEBUG] Created FakeText Object:", self.GuiObject)
     else
-        warn("[FakeDrawing] Unsupported Drawing type:", type)
+        warn("[DEBUG] Unsupported Drawing type:", type)
         return nil
     end
 
     self.GuiObject.ZIndex = self.ZIndex
     self.GuiObject.Parent = drawingGui
-    print("[FakeDrawing] Drawing object created and parented to FakeDrawingLib.")
+
+    -- Final confirmation that object is created and parented
+    print("[DEBUG] Object Parent:", self.GuiObject.Parent)
+    
     return self
 end
 
