@@ -33,27 +33,16 @@ local Drawing_mt = {
     end
 }
 
--- Helper: Get the parent for GUI elements using gethui() if available
+-- Helper: Get the parent for GUI elements using CoreGui
 local function getDrawingParent()
-    if type(gethui) == "function" then
-        local hui = gethui()
-        if hui then
-            print("[FakeDrawing] Using gethui() as GUI parent.")
-            return hui
-        end
+    local coreGui = game:GetService("CoreGui")
+    if coreGui then
+        print("[FakeDrawing] Using CoreGui as GUI parent.")
+        return coreGui
     end
+    warn("[FakeDrawing] CoreGui not accessible! Trying PlayerGui...")
     local player = game:GetService("Players").LocalPlayer
-    if not player then
-        warn("[FakeDrawing] LocalPlayer not found!")
-        return nil
-    end
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then
-        warn("[FakeDrawing] PlayerGui not found!")
-        return nil
-    end
-    print("[FakeDrawing] Using PlayerGui as GUI parent.")
-    return playerGui
+    return player and player:FindFirstChildOfClass("PlayerGui")
 end
 
 -- Get or create the main ScreenGui container
@@ -68,10 +57,9 @@ local function getDrawingGui()
         drawingGui = Instance.new("ScreenGui")
         drawingGui.Name = "FakeDrawingLib"
         drawingGui.ResetOnSpawn = false
+        drawingGui.IgnoreGuiInset = true -- Ensure it covers the whole screen
         drawingGui.Parent = parent
         print("[FakeDrawing] Created new ScreenGui: FakeDrawingLib")
-    else
-        print("[FakeDrawing] Found existing ScreenGui: FakeDrawingLib")
     end
     return drawingGui
 end
@@ -101,7 +89,6 @@ function Drawing.new(type)
         self.GuiObject = Instance.new("Frame")
         self.GuiObject.Name = "FakeLine"
         self.GuiObject.BorderSizePixel = 0
-        -- Anchor to left-center so rotation appears from the left edge
         self.GuiObject.AnchorPoint = Vector2.new(0, 0.5)
         self.GuiObject.BackgroundColor3 = self.Color
         self.GuiObject.Visible = self.Visible
@@ -131,6 +118,7 @@ function Drawing:Remove()
     print("[FakeDrawing] Drawing:Remove called.")
     if self.GuiObject then
         self.GuiObject:Destroy()
+        self.GuiObject = nil
         print("[FakeDrawing] GuiObject destroyed.")
     else
         print("[FakeDrawing] No GuiObject to destroy.")
@@ -154,7 +142,18 @@ function Drawing:UpdateLine()
     local direction = to - from
     local length = direction.Magnitude
     local angle = math.deg(math.atan2(direction.Y, direction.X))
-    
+
+    -- Ensure the line stays within screen bounds
+    local viewportSize = game:GetService("Workspace").CurrentCamera.ViewportSize
+    if from.X < 0 or from.Y < 0 or from.X > viewportSize.X or from.Y > viewportSize.Y then
+        self.GuiObject.Visible = false
+        return
+    end
+    if to.X < 0 or to.Y < 0 or to.X > viewportSize.X or to.Y > viewportSize.Y then
+        self.GuiObject.Visible = false
+        return
+    end
+
     self.GuiObject.Size = UDim2.new(0, length, 0, self.Thickness)
     self.GuiObject.Position = UDim2.new(0, from.X, 0, from.Y)
     self.GuiObject.Rotation = angle
@@ -175,8 +174,8 @@ print("[FakeDrawing] Starting test code...")
 local line = Drawing.new("Line")
 if line then
     print("[FakeDrawing] Line object created successfully.")
-    line.From = Vector2.new(100, 100)
-    line.To = Vector2.new(300, 200)
+    line.From = Vector2.new(500, 500) -- Adjusted for visibility
+    line.To = Vector2.new(600, 500)
     line.Color = Color3.new(1, 0, 0)   -- Set line color to red
     line.Thickness = 4                -- Make the line thicker
     line.ZIndex = 10                  -- Bring line to front
