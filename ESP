@@ -1,0 +1,189 @@
+--[[ 
+    Self-Contained FakeDrawing Library Replacement for the Drawing API 
+    (with __newindex support so that property assignments auto-update)
+--]]
+
+local Drawing = {}
+Drawing.__index = Drawing
+
+-- Create a metatable that intercepts property assignments.
+local Drawing_mt = {
+    __index = Drawing,
+    __newindex = function(self, key, value)
+        rawset(self, key, value)
+        if key == "From" or key == "To" then
+            if self.Type == "Line" then
+                self:UpdateLine()
+            end
+        elseif key == "Visible" and self.GuiObject then
+            self.GuiObject.Visible = value
+        elseif key == "Color" and self.GuiObject then
+            if self.Type == "Text" then
+                self.GuiObject.TextColor3 = value
+            else
+                self.GuiObject.BackgroundColor3 = value
+            end
+        elseif key == "Transparency" and self.GuiObject then
+            self.GuiObject.BackgroundTransparency = value
+        elseif key == "Thickness" and self.Type == "Line" then
+            self:UpdateLine()
+        elseif key == "ZIndex" and self.GuiObject then
+            self.GuiObject.ZIndex = value
+        end
+    end
+}
+
+-- Helper: Get the parent for GUI elements using gethui() if available
+local function getDrawingParent()
+    if type(gethui) == "function" then
+        local hui = gethui()
+        if hui then
+            print("[FakeDrawing] Using gethui() as GUI parent.")
+            return hui
+        end
+    end
+    local player = game:GetService("Players").LocalPlayer
+    if not player then
+        warn("[FakeDrawing] LocalPlayer not found!")
+        return nil
+    end
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then
+        warn("[FakeDrawing] PlayerGui not found!")
+        return nil
+    end
+    print("[FakeDrawing] Using PlayerGui as GUI parent.")
+    return playerGui
+end
+
+-- Get or create the main ScreenGui container
+local function getDrawingGui()
+    local parent = getDrawingParent()
+    if not parent then
+        warn("[FakeDrawing] Could not obtain a parent for the Drawing GUI!")
+        return nil
+    end
+    local drawingGui = parent:FindFirstChild("FakeDrawingLib")
+    if not drawingGui then
+        drawingGui = Instance.new("ScreenGui")
+        drawingGui.Name = "FakeDrawingLib"
+        drawingGui.ResetOnSpawn = false
+        drawingGui.Parent = parent
+        print("[FakeDrawing] Created new ScreenGui: FakeDrawingLib")
+    else
+        print("[FakeDrawing] Found existing ScreenGui: FakeDrawingLib")
+    end
+    return drawingGui
+end
+
+-- Creates a new drawing object. Supports "Line" and "Text".
+function Drawing.new(type)
+    print("[FakeDrawing] Drawing.new called with type:", type)
+    local self = {
+        Type = type,
+        Visible = false,
+        Color = Color3.new(1, 1, 1),
+        Transparency = 0,
+        Thickness = 2,
+        ZIndex = 1,
+        From = Vector2.new(0, 0),
+        To = Vector2.new(0, 0),
+    }
+    setmetatable(self, Drawing_mt)
+    
+    local drawingGui = getDrawingGui()
+    if not drawingGui then
+        warn("[FakeDrawing] Failed to get drawingGui in Drawing.new")
+        return nil
+    end
+
+    if type == "Line" then
+        self.GuiObject = Instance.new("Frame")
+        self.GuiObject.Name = "FakeLine"
+        self.GuiObject.BorderSizePixel = 0
+        -- Anchor to left-center so rotation appears from the left edge
+        self.GuiObject.AnchorPoint = Vector2.new(0, 0.5)
+        self.GuiObject.BackgroundColor3 = self.Color
+        self.GuiObject.Visible = self.Visible
+        self.GuiObject.Size = UDim2.new(0, 0, 0, self.Thickness)
+        print("[FakeDrawing] Created FakeLine (Frame)")
+    elseif type == "Text" then
+        self.GuiObject = Instance.new("TextLabel")
+        self.GuiObject.Name = "FakeText"
+        self.GuiObject.BackgroundTransparency = 1
+        self.GuiObject.TextColor3 = self.Color
+        self.GuiObject.Visible = self.Visible
+        self.GuiObject.TextSize = 14
+        print("[FakeDrawing] Created FakeText (TextLabel)")
+    else
+        warn("[FakeDrawing] Unsupported Drawing type:", type)
+        return nil
+    end
+
+    self.GuiObject.ZIndex = self.ZIndex
+    self.GuiObject.Parent = drawingGui
+    print("[FakeDrawing] Drawing object created and parented to FakeDrawingLib.")
+    return self
+end
+
+-- Removes the drawing object.
+function Drawing:Remove()
+    print("[FakeDrawing] Drawing:Remove called.")
+    if self.GuiObject then
+        self.GuiObject:Destroy()
+        print("[FakeDrawing] GuiObject destroyed.")
+    else
+        print("[FakeDrawing] No GuiObject to destroy.")
+    end
+end
+
+-- Updates a line drawing based on current From and To values.
+function Drawing:UpdateLine()
+    print("[FakeDrawing] Drawing:UpdateLine called.")
+    if not self.GuiObject then
+        print("[FakeDrawing] UpdateLine: GuiObject is missing.")
+        return
+    end
+    if not self.From or not self.To then
+        print("[FakeDrawing] UpdateLine: From or To is missing.")
+        return
+    end
+
+    local from = self.From
+    local to = self.To
+    local direction = to - from
+    local length = direction.Magnitude
+    local angle = math.deg(math.atan2(direction.Y, direction.X))
+    
+    self.GuiObject.Size = UDim2.new(0, length, 0, self.Thickness)
+    self.GuiObject.Position = UDim2.new(0, from.X, 0, from.Y)
+    self.GuiObject.Rotation = angle
+    self.GuiObject.BackgroundColor3 = self.Color
+    self.GuiObject.BackgroundTransparency = self.Transparency
+    self.GuiObject.Visible = self.Visible
+
+    print(string.format("[FakeDrawing] Line updated: From=(%.2f, %.2f), To=(%.2f, %.2f), Length=%.2f, Angle=%.2f",
+        from.X, from.Y, to.X, to.Y, length, angle))
+end
+
+--[[ 
+    Test Code for the FakeDrawing Library 
+    This will create a visible red line from (100, 100) to (300, 200).
+--]]
+print("[FakeDrawing] Starting test code...")
+
+local line = Drawing.new("Line")
+if line then
+    print("[FakeDrawing] Line object created successfully.")
+    line.From = Vector2.new(100, 100)
+    line.To = Vector2.new(300, 200)
+    line.Color = Color3.new(1, 0, 0)   -- Set line color to red
+    line.Thickness = 4                -- Make the line thicker
+    line.ZIndex = 10                  -- Bring line to front
+    line.Transparency = 0             -- Ensure no transparency
+    line.Visible = true               -- Make the line visible
+else
+    warn("[FakeDrawing] Failed to create a Line object!")
+end
+
+return Drawing
