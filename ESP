@@ -147,32 +147,37 @@ function Drawing:UpdateLine()
         return
     end
 
-    local from = self.From
-    local to = self.To
-    local direction = to - from
+    -- Ensure the line stays within screen bounds
+    local viewportSize = game:GetService("Workspace").CurrentCamera.ViewportSize
+    if self.From.X < 0 or self.From.Y < 0 or self.From.X > viewportSize.X or self.From.Y > viewportSize.Y then
+        print("[FakeDrawing] Line start position is out of bounds!")
+        self.GuiObject.Visible = false
+        return
+    end
+    if self.To.X < 0 or self.To.Y < 0 or self.To.X > viewportSize.X or self.To.Y > viewportSize.Y then
+        print("[FakeDrawing] Line end position is out of bounds!")
+        self.GuiObject.Visible = false
+        return
+    end
+
+    -- Calculate direction and length of the line
+    local direction = self.To - self.From
     local length = direction.Magnitude
     local angle = math.deg(math.atan2(direction.Y, direction.X))
 
-    -- Ensure the line stays within screen bounds
-    local viewportSize = game:GetService("Workspace").CurrentCamera.ViewportSize
-    if from.X < 0 or from.Y < 0 or from.X > viewportSize.X or from.Y > viewportSize.Y then
-        self.GuiObject.Visible = false
-        return
-    end
-    if to.X < 0 or to.Y < 0 or to.X > viewportSize.X or to.Y > viewportSize.Y then
-        self.GuiObject.Visible = false
-        return
-    end
+    -- Debug info: Show the calculated line properties
+    print(string.format("[FakeDrawing] Line calculated: Length=%.2f, Angle=%.2f", length, angle))
 
+    -- Adjust the size and position of the line (Frame)
     self.GuiObject.Size = UDim2.new(0, length, 0, self.Thickness)
-    self.GuiObject.Position = UDim2.new(0, from.X, 0, from.Y)
+    self.GuiObject.Position = UDim2.new(0, self.From.X, 0, self.From.Y)
     self.GuiObject.Rotation = angle
     self.GuiObject.BackgroundColor3 = self.Color
     self.GuiObject.BackgroundTransparency = self.Transparency
     self.GuiObject.Visible = self.Visible
 
-    print(string.format("[FakeDrawing] Line updated: From=(%.2f, %.2f), To=(%.2f, %.2f), Length=%.2f, Angle=%.2f",
-        from.X, from.Y, to.X, to.Y, length, angle))
+    -- Check visibility and correct rendering
+    print("[FakeDrawing] Line updated. Visible:", self.GuiObject.Visible)
 end
 
 --[[ 
@@ -184,13 +189,14 @@ print("[FakeDrawing] Starting test code...")
 local line = Drawing.new("Line")
 if line then
     print("[FakeDrawing] Line object created successfully.")
-    line.From = Vector2.new(500, 500) -- Adjusted for visibility
-    line.To = Vector2.new(600, 500)
-    line.Color = Color3.new(1, 0, 0)   -- Set line color to red
-    line.Thickness = 4                -- Make the line thicker
-    line.ZIndex = 10                  -- Bring line to front
-    line.Transparency = 0             -- Ensure no transparency
-    line.Visible = true               -- Make the line visible
+    -- Set the line's properties
+    line.From = Vector2.new(500, 500)  -- Start position
+    line.To = Vector2.new(600, 500)    -- End position
+    line.Color = Color3.new(1, 0, 0)   -- Red color
+    line.Thickness = 4                 -- Line thickness
+    line.ZIndex = 10                   -- Bring line to front
+    line.Transparency = 0              -- No transparency
+    line.Visible = true                -- Make the line visible
 else
     warn("[FakeDrawing] Failed to create a Line object!")
 end
